@@ -1,0 +1,44 @@
+<TRACK
+  NAME Quelea
+  PEAKCOL 25142527
+  BEAT -1
+  AUTOMODE 0
+  VOLPAN 1 0 -1 -1 1
+  MUTESOLO 0 0 0
+  IPHASE 0
+  PLAYOFFS 0 1
+  ISBUS 0 0
+  BUSCOMP 0 0 0 0 0
+  SHOWINMIX 1 0.486486 0.361314 1 0.5 0 -1 0
+  FREEMODE 0
+  REC 0 4432 1 7 0 0 0
+  VU 2
+  TRACKHEIGHT 103 0 0 0 0 0
+  INQ 0 0 0 0.5 100 0 0 100
+  NCHAN 2
+  TRACKIMGFN "QueleaLogoRemoteControl.png"
+  FX 1
+  TRACKID {D5007C64-E1F8-468E-82E7-A5D97B1058DD}
+  PERF 0
+  UNDO_HAS_TRACKENV
+  MIDIOUT 400
+  <MIDINOTENAMES
+    -1 0 /clear 0 0
+    -1 1 /black 0 1
+    -1 2 /tlogo 0 2
+    -1 3 /previtem 0 3
+    -1 4 /prev 0 4
+    -1 5 /next 0 5
+    -1 6 /nextitem 0 6
+    -1 7 "/section (velocity)" 0 7
+    -1 8 /play 0 8
+    -1 9 "/gotoitem (velocity)" 0 9
+    -1 10 /transpose 0 10
+  >
+  MAINSEND 1 0
+  <FXCHAIN
+    SHOW 0
+    LASTSEL 0
+    DOCKED 0
+  >
+>
