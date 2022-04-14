@@ -70,6 +70,9 @@ classdef MIDI2HTTP_Bridge < handle
 
             %% Import properties from file
             % Check if file exists otherwise locate it
+            if ~isdeployed% Check if it is deployed to adjust the root paths
+                B.configuration_filepath = "."+B.configuration_filepath;
+            end
             if ~exist(B.configuration_filepath,"file")
                 [configFileName,configFilePath] = uigetfile(B.configuration_filepath);
                 B.configuration_filepath = fullfile(configFilePath,configFileName);
@@ -81,6 +84,10 @@ classdef MIDI2HTTP_Bridge < handle
             % Compute the application loop FPS limiter to match the cycle
             % rate of the DAW's audio interface (it will be approximate)
             B.inLoopFPS = B.DAW_AudioFreqencyHz/B.DAW_InterfaceBufferSamples;
+
+            if ~isdeployed% Check if it is deployed to adjust the root paths
+                B.midi_HttpProtocolPreset = "."+B.midi_HttpProtocolPreset;
+            end
             
             B.STATE_FLAG="Configured";
         end
