@@ -44,7 +44,7 @@ classdef MIDI2HTTP_Bridge < handle
     end
 
     properties
-        configuration_filepath = "../daw2server_settingsConfiguration.ini";% Default file name
+        configuration_filepath = "./daw2server_settingsConfiguration.ini";% Default file name
         % MIDI device(bridge name)
         midiDevice;
         % Limiter

@@ -75,7 +75,7 @@
       <param.example />
     </unset>
     <fileset.main>
-      <file>${PROJECT_ROOT}\main.m</file>
+      <file>${PROJECT_ROOT}\MATLAB\main.m</file>
     </fileset.main>
     <fileset.resources />
     <fileset.package>
@@ -83,10 +83,10 @@
       <file>${PROJECT_ROOT}\QueleaPreset</file>
     </fileset.package>
     <fileset.depfun>
-      <file>${PROJECT_ROOT}\handleLogin.m</file>
-      <file>${PROJECT_ROOT}\importConfigurationSettings.m</file>
-      <file>${PROJECT_ROOT}\importMidiTriggers.m</file>
-      <file>${PROJECT_ROOT}\MIDI2HTTP_Bridge.m</file>
+      <file>${PROJECT_ROOT}\MATLAB\handleLogin.m</file>
+      <file>${PROJECT_ROOT}\MATLAB\importConfigurationSettings.m</file>
+      <file>${PROJECT_ROOT}\MATLAB\importMidiTriggers.m</file>
+      <file>${PROJECT_ROOT}\MATLAB\MIDI2HTTP_Bridge.m</file>
     </fileset.depfun>
     <build-deliverables>
       <file location="${PROJECT_ROOT}\DAW2QueleaMidiBridge\for_testing" name="splash.png" optional="false">C:\Users\JessyJP\Dropbox\Projects Workfiles &amp; Software\DAW2PresentorMidiBridge\DAW2QueleaMidiBridge\for_testing\splash.png</file>
