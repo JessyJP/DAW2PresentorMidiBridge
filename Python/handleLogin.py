@@ -1,0 +1,2 @@
+def handleLogin(B):
+    True

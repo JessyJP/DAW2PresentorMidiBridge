@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # %
 # % Description: This is the main script file that instantiates the MIDI2HTTP_Bridge class
 # % initializes the process configuration and runs the control loop.
@@ -6,7 +7,7 @@
 # %
 
 from operator import truediv;
-from .MIDI2HTTP_Bridge import MIDI2HTTP_Bridge;
+from MIDI2HTTP_Bridge import MIDI2HTTP_Bridge;
 import os;
 from tkinter import *;
 
