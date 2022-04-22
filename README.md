@@ -6,3 +6,6 @@ https://quelea.discourse.group/t/i-am-making-available-a-ready-made-connection-s
 
 Reaper Forum post:
 https://forum.cockos.com/showthread.php?t=265310
+
+The server(service) is originally written in MATALB and also made available for Python.
+You can run it as MATLAB code or Python code or use the executable for Windows.
