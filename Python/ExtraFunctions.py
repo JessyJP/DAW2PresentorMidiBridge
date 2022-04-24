@@ -49,6 +49,5 @@ def formattedDisplayText(object):
     outputStr =outputStr+80*"-"+os.linesep;
     return outputStr;
 
-
-# Test function calls 
-# uigetfile("c:\Users\JessyJP\Dropbox\Projects Workfiles & Software\DAW2PresentorMidiBridge\daw2server_settingsConfiguration.ini" )
+# Test function calls
+# ...

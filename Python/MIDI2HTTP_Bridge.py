@@ -19,23 +19,18 @@
 
 # ==============================================================
 # Standard libraty imports
+
+# System and os import
 import sys , os ;
+# Import the time library
 import time;
+# Library for HTTP requests
+import requests;
+
 
 # Custom functions imports
 # from ExtraFunctions import *;
 from ExtraFunctions import uigetfile,getTimeNow,importConfigurationSettings,formattedDisplayText;
-
-
-# ==============================================================
-# The extra functions file imports from .ExtraFunctions import *;
-# ==============================================================
-
-from tkinter.tix import FileSelectBox
-
-
-
-# ==============================================================
 
 
 # ==============================================================
@@ -79,7 +74,7 @@ class MIDI2HTTP_Bridge:
         STATE_FLAG="";
         diagnosticMode=0;
 
-        serverURL="";
+        # serverURL="";# This will not be needed
         MAP=[];
     # end
    
@@ -171,14 +166,8 @@ class MIDI2HTTP_Bridge:
                     value = type(B.__getattribute__(key)) (value);
                     # Assign the value 
                     B.__setattr__(key,value);
-                    B.log("Assign Property: ["+key+"] = ["+B.__getattribute__(key)+"]")
-             
-            #         # % If the property value is alphabetic i.e. char array
-            #         # % convert that to string
-            #         if isinstance(B.(fn),__char):
-            #             B.(fn) = string(B.(fn));
-            #         # end
-
+                    B.log("Assign Property: ["+key+"] = ["+str(B.__getattribute__(key))+"]");
+            
                 except:# %(err) Could catch the original message and merge it the one in the catch
                     errorMsg = "Not found Property:["+key+"]"+" Associated data:["+str(value)+"]";
                     B.log(errorMsg); 
@@ -195,73 +184,100 @@ class MIDI2HTTP_Bridge:
 
         # % Get MIDI device info
         def getMidiDeviceInfo(B):
-            info = ""#Remove this
-            # info = mididevinfo;# % Get midi device info
-            # B.log(evalc('mididevinfo'));# %display the available midi devices
-            return info;
+            # Import the MIDI module from pygame
+            B.log(os.linesep+"MIDI device library:");
+            from pygame import midi;
+            midi.init();
+            B.log(os.linesep+"Get list of midi devices:");
+            midiDevInfo = [];
+            device_count = midi.get_count()
+            # % Get midi device info;
+            for device_ID in range(device_count):
+                device = midi.get_device_info(device_ID);
+
+                keys = ['interface', 'name', 'is_input', 'is_output', 'opened'];
+                info = dict(zip(keys, device));
+                info['device_id'] = device_ID;
+                info['handle'] = device;
+                info['name'] = info['name'].decode();
+
+                
+                # If the device is input device 
+                if info["is_input"]:
+                    B.log("Type: [Input]["+str(device[2])+"] - ID["+str(device_ID)+"] - "+info["name"]);# %display the available midi devices
+                elif info["is_output"]:
+                    B.log("Type: [Ouput]["+str(device[2])+"] - ID["+str(device_ID)+"] - "+info["name"]);# %display the available midi devices
+                else:
+                    B.log("Devoce type not recognized! - "+info["name"]);
+                # end
+                midiDevInfo.append(info);
+
+            midi.quit() # THIS LINE FIXED IT
+            return midiDevInfo;
         # end
         
         # % Select the MIDI device connection
         def selectMidiDeviceInput(B):
+            import numpy as np;
             # % Get midi device info
             devInfo = B.getMidiDeviceInfo();
-            # % Convert the input midi devices info to table
-            # inDevInfo = struct2table(devInfo.input);
 
             # % Check if the imported midi name can be found otherwise load
             # % the one from the list
-            # if not(contains(B.midi_BridgeName,inDevInfo.Name)):
-            #     promptMsg = "\nPlease select the MIDI bridge from input device IDs [%i:%i]:";
-            #     promptMsg = sprintf(promptMsg,min(inDevInfo.ID),max(inDevInfo.ID));
-            #     noValidInput = True;
-            #     # % Input validation until valid input is given
-            #     while noValidInput:
-            #         deviceID = input(promptMsg,"s");
-            #         if isempty(str2double(deviceID)):
-            #             fprintf('The numeric input is not valid! Please try again!\n');
-            #         else 
-            #             deviceID = str2double(deviceID);
-            #             noValidInput = false;
-            #         # end
-            #     # end
+            preselectedMidiDevice = False;
+            for dev in devInfo:
+                if (B.midi_BridgeName == dev["name"]) and dev["is_input"]:
+                    preselectedMidiDevice = True;
+                    break;
 
-            #     # % After Validation
-            #     B.midi_BridgeName = devInfo.input(deviceID).Name;
-            # # end
+            # If the preslected MIDI device is not found ask for selection       
+            if not(preselectedMidiDevice):
+                promptMsg = os.linesep+"Please select the MIDI bridge from input device IDs [%i:%i]:";
+                # Get input device indices
+                IDs =  [dI["device_id"] if dI["is_input"]==1 else np.nan for dI in devInfo];
+                promptMsg = promptMsg % (np.nanmin(IDs),np.nanmax(IDs));
+                noValidInput = True;
+                # % Input validation until valid input is given
+                while noValidInput:
+                    input_deviceID = (input(promptMsg));
+                    if input_deviceID.isnumeric() and  (int(input_deviceID) in IDs):
+                        # Get the device input 
+                        input_deviceID = int(input_deviceID);
+                        # Match the input to the list of devices
+                        for dev in devInfo:
+                            if (input_deviceID == dev["device_id"]) and dev["is_input"]:
+                                noValidInput = False;
+                                break;
+                            # end
+                        # end
+                        if noValidInput:
+                            B.log("The input was not found in the list of devices!");
+                            raise Exception("")
+                        # end
+                    else:
+                        B.log('The numeric input is not valid! Please try again!');
+                    # end
+                # end
+
+                # % After Validation
+                B.midi_BridgeName = dev["name"];
+            # end
             
-            # # % Load the selected device as an input to the Bridge.
-            # # % DAW(out)->(in)Bridge
-            # B.midiDevice = mididevice('Input',B.midi_BridgeName);%'Output',midideviceName) 
-
+            # % Load the selected device as an input to the Bridge.
+            # % DAW(out)->(in)Bridge
+            B.midiDevice = dev["handle"];#%'Output',midideviceName) 
+            # Log and display the selected device
+            B.log(os.linesep+"The currect selected device connection: ["+B.midi_BridgeName +"]"+
+                  " ID:["+str(dev["device_id"])+"]"+os.linesep);
         # end
     
         # # % Get function to get the server URL
-        # def get.serverURL(B):
-        #     serverURL = "";
-        #     if ~isempty(B.Server_IP.char):
-        #         serverURL = B.Server_Protocol+"://"+B.Server_IP+":"+B.Server_ControlPort;
-        #     # end
-        #     return serverURL;
-        # # end
-    
-        # % Processing the tirggers and prepareing them for 
-        def processTriggerMap(B):
-            # % Only process the enabled mappings
-            # B.MAP = B.MAP(B.MAP.MidiMapping=='enabled',:);
-            # # % Process the table entries
-            # for r in range(1,numel(B.MAP.HTTP_URL)):
-            #     # % Make the HTTP Calls
-            #     B.MAP.HTTP_URL[r] = B.serverURL+B.MAP.HTTP_URL[r];
-            #     # % Get the MIDI notes Alphabetical form
-            #     if contains(B.MAP.MidimsgType(r),'Note'):
-            #         NoteAlph[r] = B.val2note(B.MAP.MidiNote_CC[r]);
-            #     else:
-            #         NoteAlph[r] = "";
-            #     # end
-            # # end
-            # # % Put the alphabetical note from in the trigger table
-            # B.MAP.NoteAlph = NoteAlph';
-            True#remove this 
+        def get_serverURL(B):
+            serverURL = "";
+            if not(B.Server_IP == ""):
+                serverURL = B.Server_Protocol+"://"+B.Server_IP+":"+str(B.Server_ControlPort);
+            # end
+            return serverURL;
         # end
 
         # % Function to establish the connection to the server
@@ -271,10 +287,11 @@ class MIDI2HTTP_Bridge:
             serverFound=False;
             # % Maximum of connection retyr attempts
             connectionRetryLimit = 10000;
-            for retry in range(1,connectionRetryLimit):
-                if ~(B.serverURL=="") and configAvailable_server:
+            for retry in range(connectionRetryLimit):
+                if ~(B.get_serverURL=="") and configAvailable_server:
                     # % Connect to the preconfigured IP
-                    serverFound = B.testConnection();
+                    testResult = B.testConnection();
+                    serverFound = testResult[0];
                 else:
                     B.log("Server Configuration in ["+B.configuration_filepath+"] not found!");
                     configAvailable_server= False;
@@ -287,79 +304,119 @@ class MIDI2HTTP_Bridge:
                         # % Connect to the preconfigured IP
                         try:
                             B.log("Attempt autodiscover at ["+B.Server_autodiscover+"] ... ")
-            #                 response = send(matlab.net.http.RequestMessage,B.Server_autodiscover);
-            #                 # % Convert the response data to formated strings.
-            #                 # URIs = string(char(response.Body.Data')).split(os.linesep);
-            #                 # # % Get the correct control IP
-            #                 # URI=URIs(URIs.contains(":"+B.Server_ControlPort));
-                            URI = "";#Remove this
+                            # If the preemble is missing add the protocol to the auto discover
+                            if B.Server_autodiscover.find(B.Server_Protocol) < 0:
+                                B.Server_autodiscover=B.Server_Protocol+"://"+B.Server_autodiscover;
+                            # end
+                            response = requests.get(B.Server_autodiscover);
+                            # % Convert the response data to formated strings.
+                            URIs = response.text.splitlines();
+                            # % Get the correct control IP
+                            URI = list(filter(lambda x: (":"+str(B.Server_ControlPort)) in x, URIs))[0];
                             B.log("Autodiscover found at ["+B.Server_autodiscover+"] is ["+URI+"]");
                             # % Split the URI
-            #                 uriParts = URI.split({'://',':'});
-            #                 B.Server_Protocol = uriParts[1];
-            #                 B.Server_IP = uriParts[2];
-            #                 B.Server_ControlPort = str2double(uriParts[3]);
-            #
+                            uriParts = URI.replace("://",":").split(':',3);
+                            B.Server_Protocol = uriParts[0];
+                            B.Server_IP = uriParts[1];
+                            B.Server_ControlPort = int(uriParts[2]);
+            
                         except:
                             B.log("Autodiscover at ["+B.Server_autodiscover+"] failed!");
                         # end
-            #         else:
-            #             B.log("Server autodiscover Configuration in ["+B.configuration_filepath+"] not found!");
-            #             configAvailable_autodiscover = false;
-            #         # end
-            #     # end
-            #
-            #     # % If configuration data is not available for both
-            #     if serverFound:
-            #         B.STATE_FLAG="connected";
-            #         break;
-            #     elif not(configAvailable_server) and not(configAvailable_autodiscover):
-            #         B.STATE_FLAG="exit";
-            #         break;
-            #     else:
-            #         B.STATE_FLAG="connection_retry";
-            #         if retry != connectionRetryLimit:
-            #             B.log(os.linesep+"Retry connection ...");
-            #             time.sleep(1);
-            #         else:
-            #             B.log(os.linesep+"Connection retry limit reached ... exiting!");
-            #         # end
-            #     # end           
-            #
+                    else:
+                        B.log("Server autodiscover Configuration in ["+B.configuration_filepath+"] not found!");
+                        configAvailable_autodiscover = False;
+                    # end
+                # end
+            
+                # % If configuration data is not available for both
+                if serverFound:
+                    B.STATE_FLAG="connected";
+                    break;
+                elif not(configAvailable_server) and not(configAvailable_autodiscover):
+                    B.STATE_FLAG="exit";
+                    break;
+                else:
+                    B.STATE_FLAG="connection_retry";
+                    if retry < connectionRetryLimit-1:
+                        B.log(os.linesep+"Retry connection ...");
+                        time.sleep(1);
+                    else:
+                        B.log(os.linesep+"Connection retry limit reached ... exiting!");
+                    # end
+                # end           
+            
             # end
             # % Just a new line for clarity
             B.log(" ");
+        # end
 
-            # %% Network autodiscover
-            # % First check the OS then get the adaptors 
-# %             if ispc
-# %                 [~, result] = system('ipconfig -all');
-# %             elseif isunix
-# %             elseif ismac
-# %             else
-# %                 error('The platform is not suppported for autodiscovery.')
-# %             end
-# %
-# %           -- After that get the subnet mask and the IP in range and start
-# %           checking
-#         end
-    
+
         # % Connection test function
         def testConnection(B):
             connectionOK = False;
+            response = [];
+            URL = B.get_serverURL();
             try:
-                B.log("Connecting to ["+B.serverURL+"] ... ");
-                # response = send(matlab.net.http.RequestMessage,B.serverURL);
-                response ="";#remove this
-                B.log("Server found at ["+B.serverURL+"]");
+                B.log("Connecting to ["+URL+"] ... ");
+                # Send a test request to the server
+                response = requests.get(URL);
+                B.log("Server found at ["+URL+"]");
                 connectionOK = True;
             except:
-                B.log("Connection to ["+B.serverURL+"] failed!");
+                B.log("Connection to ["+URL+"] failed!");
             # end
-            return connectionOK , response;
+            return [connectionOK , response];
         # end
 
-        # def handleLogin_(B): handleLogin(B); # end
+        def handleLogin_(B):
+            from handleLogin import handleLogin; 
+            handleLogin(B); 
+        # end
+
+        # Import Triggers
+        def importMidiTriggers(B):
+            import csv;
+            import pandas as pd;
+
+            # Import the MIDI triggers as CSV table
+            data = pd.read_csv(B.midi_HttpProtocolPreset,delimiter=",");
+            
+            # % Specify column names and types
+            # opts.VariableNames = ["HTTP_URL", "ServerAPI", "MidiMapping", "Description", "GroupType", "ActionTypeArguments", "MidimsgType", "MidiChanel", "MidiNote_CC", "ExternalExecutable", "ExternalCmd"];
+            # opts.VariableTypes = ["string", "string", "categorical", "string", "categorical", "categorical", "string", "double", "double", "string", "string"];
+
+            # % Specify file level properties
+            # opts.ExtraColumnsRule = "ignore";
+            # opts.EmptyLineRule = "read";
+
+            # % Specify variable properties
+            # opts = setvaropts(opts, ["HTTP_URL", "ServerAPI", "Description", "ExternalExecutable", "ExternalCmd"], "WhitespaceRule", "preserve");
+            # opts = setvaropts(opts, ["HTTP_URL", "ServerAPI", "MidiMapping", "Description", "GroupType", "ActionTypeArguments", "MidimsgType", "ExternalExecutable", "ExternalCmd"], "EmptyFieldRule", "auto");
+
+            # Pass the data
+            B.MAP = data;
+        # end
+
+        # % Processing the tirggers and prepareing them for 
+        def processTriggerMap(B):
+            # % Only process the enabled mappings
+            # B.MAP = B.MAP(B.MAP.MidiMapping=='enabled',:);
+            # # % Process the table entries
+            # for r in range(1,numel(B.MAP.HTTP_URL)):
+            #     # % Make the HTTP Calls
+            #     B.MAP.HTTP_URL[r] = B.get_serverURL+B.MAP.HTTP_URL[r];
+            #     # % Get the MIDI notes Alphabetical form
+            #     if contains(B.MAP.MidimsgType(r),'Note'):
+            #         NoteAlph[r] = B.val2note(B.MAP.MidiNote_CC[r]);
+            #     else:
+            #         NoteAlph[r] = "";
+            #     # end
+            # # end
+            # # % Put the alphabetical note from in the trigger table
+            # B.MAP.NoteAlph = NoteAlph';
+            True#remove this 
+        # end
     # end
 
 
@@ -476,27 +533,30 @@ class MIDI2HTTP_Bridge:
     
     # % MIDI Properties
     # properties
-        # notesInOctave = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+        notesInOctave = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     # end
 
-#     % Extra MIDI methods
-#     methods
-#         function [val] = note2val(B,note)
-#             warning('finish this function');
-#         end
+    # # % Extra MIDI methods
+    # # methods
+    #     def note2val(B,note):
+    #         val = [];
+    #         warning('finish this function');
+    #         return val;
+    #     # end
 
-#         function [noteStr] = val2note(B,val)
-#             if ~isnumeric(val)
-#                 error('The MIDI note input value is not numeric!')
-#             end
+    #     def val2note(B,val):
+    #         if not(val.isnumeric()):
+    #             # error('The MIDI note input value is not numeric!');
+    #         # end
 
-#             if 0 <= val and val <= 127
-#                 noteStr = B.notesInOctave( mod(val,numel(B.notesInOctave)) + 1 ) + ...
-#                           num2str( floor( val/numel(B.notesInOctave) ) - 1 );
-#             else 
-#                 error('MIDI notes range is [0:127] the input value is out of bounds!');
-#             end
-#         end
-#     end
+    #         if 0 <= val and val <= 127
+    #             noteStr = B.notesInOctave( mod(val,numel(B.notesInOctave)) + 1 ) + ...
+    #                              num2str( floor( val/numel(B.notesInOctave) ) - 1 );
+    #         else 
+    #             error('MIDI notes range is [0:127] the input value is out of bounds!');
+    #         # end
+    #         return noteStr;
+    #     # end
+    # # end
   
 # end

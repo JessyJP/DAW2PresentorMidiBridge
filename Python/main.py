@@ -21,7 +21,6 @@ else:
    os.system('cls')
 
 
-
 def showSplashScreen():
     splash_screen =Tk();
     splash_screen.title("Splash screen");
@@ -43,12 +42,13 @@ B = MIDI2HTTP_Bridge();
 B.selectMidiDeviceInput();
 
 # % Matlab how to test with CPU useage.
-B.establishServerConnection()
+B.establishServerConnection();
 
+# Handle User Authentication
 B.handleLogin_();
 
 # %% Setup the MIDI to HTTP cue/trigger map
-# B.MAP = importMidiTriggers(fullfile(pwd,B.midi_HttpProtocolPreset));
+B.importMidiTriggers();
 
 # %% Prepare the HTTP calls
 B.processTriggerMap();

@@ -286,7 +286,7 @@ classdef MIDI2HTTP_Bridge < handle
                     break;
                 else
                     B.STATE_FLAG="connection_retry";
-                    if retry ~= connectionRetryLimit
+                    if retry < connectionRetryLimit
                         B.log(newline+"Retry connection ...");
                         pause(1);
                     else
