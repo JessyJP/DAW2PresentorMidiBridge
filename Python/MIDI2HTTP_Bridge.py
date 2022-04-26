@@ -21,11 +21,17 @@
 # Standard libraty imports
 
 # System and os import
+from ast import alias;
 import sys , os ;
 # Import the time library
 import time;
 # Library for HTTP requests
 import requests;
+# Import the math library
+from numpy import mod;
+from math import floor;
+# Import pandas library to handle DataFrame data object
+import pandas as pd;
 
 
 # Custom functions imports
@@ -72,7 +78,7 @@ class MIDI2HTTP_Bridge:
         # % State flag for the sate of the program can also be used as a
         # % control flag 
         STATE_FLAG="";
-        diagnosticMode=0;
+        diagnosticMode=False;
 
         # serverURL="";# This will not be needed
         MAP=[];
@@ -265,7 +271,7 @@ class MIDI2HTTP_Bridge:
             
             # % Load the selected device as an input to the Bridge.
             # % DAW(out)->(in)Bridge
-            B.midiDevice = dev["handle"];#%'Output',midideviceName) 
+            B.midiDevice = dev;#%'Output',midideviceName) 
             # Log and display the selected device
             B.log(os.linesep+"The currect selected device connection: ["+B.midi_BridgeName +"]"+
                   " ID:["+str(dev["device_id"])+"]"+os.linesep);
@@ -383,16 +389,12 @@ class MIDI2HTTP_Bridge:
             data = pd.read_csv(B.midi_HttpProtocolPreset,delimiter=",");
             
             # % Specify column names and types
-            # opts.VariableNames = ["HTTP_URL", "ServerAPI", "MidiMapping", "Description", "GroupType", "ActionTypeArguments", "MidimsgType", "MidiChanel", "MidiNote_CC", "ExternalExecutable", "ExternalCmd"];
+            data.columns = ["HTTP_URL", "ServerAPI", "MidiMapping", "Description", "GroupType", "ActionTypeArguments", "MidimsgType", "MidiChanel", "MidiNote_CC", "ExternalExecutable", "ExternalCmd"];
             # opts.VariableTypes = ["string", "string", "categorical", "string", "categorical", "categorical", "string", "double", "double", "string", "string"];
 
             # % Specify file level properties
             # opts.ExtraColumnsRule = "ignore";
             # opts.EmptyLineRule = "read";
-
-            # % Specify variable properties
-            # opts = setvaropts(opts, ["HTTP_URL", "ServerAPI", "Description", "ExternalExecutable", "ExternalCmd"], "WhitespaceRule", "preserve");
-            # opts = setvaropts(opts, ["HTTP_URL", "ServerAPI", "MidiMapping", "Description", "GroupType", "ActionTypeArguments", "MidimsgType", "ExternalExecutable", "ExternalCmd"], "EmptyFieldRule", "auto");
 
             # Pass the data
             B.MAP = data;
@@ -401,21 +403,26 @@ class MIDI2HTTP_Bridge:
         # % Processing the tirggers and prepareing them for 
         def processTriggerMap(B):
             # % Only process the enabled mappings
-            # B.MAP = B.MAP(B.MAP.MidiMapping=='enabled',:);
-            # # % Process the table entries
-            # for r in range(1,numel(B.MAP.HTTP_URL)):
-            #     # % Make the HTTP Calls
-            #     B.MAP.HTTP_URL[r] = B.get_serverURL+B.MAP.HTTP_URL[r];
-            #     # % Get the MIDI notes Alphabetical form
-            #     if contains(B.MAP.MidimsgType(r),'Note'):
-            #         NoteAlph[r] = B.val2note(B.MAP.MidiNote_CC[r]);
-            #     else:
-            #         NoteAlph[r] = "";
-            #     # end
+            B.MAP = B.MAP.loc[B.MAP.MidiMapping == "enabled"];
+            
+            # % Make the HTTP Calls
+            B.MAP.HTTP_URL = B.get_serverURL()+B.MAP.HTTP_URL;
+
+            # Reset table indices
+            B.MAP = B.MAP.reset_index();
+
+            NoteAlph = [];
+            # % Process the table entries
+            for index,r in B.MAP.iterrows():
+                # % Get the MIDI notes Alphabetical form
+                if "Note".lower() in r.MidimsgType.lower():
+                    NoteAlph.append(B.val2note(r.MidiNote_CC));
+                else:
+                    NoteAlph.append("");
+                # end
             # # end
             # # % Put the alphabetical note from in the trigger table
-            # B.MAP.NoteAlph = NoteAlph';
-            True#remove this 
+            B.MAP['NoteAlph'] = NoteAlph;
         # end
     # end
 
@@ -425,110 +432,195 @@ class MIDI2HTTP_Bridge:
         
         # % Run main loop
         def runLoop(B):
+            # Midi library imports 
+            import pygame as pg;
+            import pygame.midi;
             
-            tDelayInSeconds = 1./B.inLoopFPS; # % Compute the time delay to maintain the loop
-            B.STATE_FLAG = 'running';# % Running state
+            # Pygame and MIDI library initialization
+            pg.init();
+            pg.fastevent.init();
+            pygame.midi.init();
+            # Event aliases
+            event_get = pg.fastevent.get;
+            event_post = pg.fastevent.post;
 
-#             uMidiChannels = unique(B.MAP.MidiChanel);
-#             uMidiTypes    = [midimsgtype.NoteOn];%unique(B.MAP.MidimsgType);midimsgtype.ControlChange
-#                 warning("... Other types need to be included but for now this is sufficient");
+            # Setup midi input handle  
+            i_ = pygame.midi.Input(B.midiDevice['device_id']);
 
-#             if B.diagnosticMode
-#                 % Timers and counters
-#                 totalTime = tic;% Total time
-#                 loopCount = 0;% Total counter
-#                 lastTime  = tic;% Last time
-#                 lastCount = 0;% Last count
-#             end
-#             % Run the main control loop
-#             while true
-#                 cycleTime  = tic;% Loop timing
+            # Mode setup display mode in pixels
+            pg.display.set_mode((1, 1));
 
-#                 % Check if any new messages have been recieved
-#                 if hasdata(B.midiDevice)
-#                     % Get the midi messages
-#                     msgs = midireceive(B.midiDevice);
-#                     % Loop over all messages that have been recieved
-#                     for i = 1:numel(msgs)
-#                         % Ignore all messages that don't match the midi channel and the
-#                         % midi message types in the cue trigger mapping database file
-#                         if any(uMidiChannels == msgs(i).Channel) and any(uMidiTypes==msgs(i).Type)
-#                             % Call the callback function
-#                             B.handleMidiCallback(msgs(i));
-#                         end
-#                     end
-#                 end
+            # % Compute the time delay to maintain the loop
+            tDelayInSeconds = 1./B.inLoopFPS;
+            B.STATE_FLAG = 'running';# % Running state update
 
-#                 % Time delay to maintain the refresh rate 
-#                 currentDelay = (tDelayInSeconds - toc(cycleTime))*0.925;
-#                 if currentDelay > 0
-#                     % Dealy
-#                     pause(currentDelay);
-#                 end
-                
-#                 if B.diagnosticMode
-#                     loopCount = loopCount+1; % Increment the count the total count
-#                     lastCount = lastCount+1; % Increment the count the last count                
-#                     % Disagnostic for tuneing (not needed in deployment)
-#                     if ~mod(loopCount,B.inLoopFPS)
-#                         B.log( sprintf("FPS:%i | C:%i = Clast:%i | T:%f = T:%f | Rtot:%f = Rlast:%f",...
-#                             [B.inLoopFPS,loopCount,lastCount,toc(totalTime),toc(lastTime),loopCount/toc(totalTime),lastCount/toc(lastTime)]) );
-#                         lastTime  = tic;% Last time reset
-#                         lastCount = 0;% Last count reset
-#                     end
-#                 end
-#             end
+            uMidiChannels = list(pd.unique(B.MAP.MidiChanel));
+            # uMidiTypes    = ["NoteOn","ControlChange"];
+            uMidiTypes    = list(pd.unique(B.MAP.MidimsgType));
+            Warning("... Other types need to be included but for now this is sufficient");
 
-#         end
+            def tic():
+                # The function will return the start timer mark
+                return time.time();
 
-#         function handleMidiCallback(B,midi)
-# %             import matlab.net.*
-#             import matlab.net.http.*
+            def toc(startTime):
+                # The function will return elapced time
+                return time.time() - startTime;
+
+            if B.diagnosticMode:
+                # % Timers and counters
+                totalTime = tic();#% Total time
+                loopCount = 0;#% Total counter
+                lastTime  = tic();#% Last time
+                lastCount = 0;#% Last count
+
+            # end
             
-#             % Filter the trigger table
-#             try
-#             rowIndex = (B.MAP.MidiChanel == midi.Channel) and (B.MAP.MidiNote_CC == midi.Note);
-#             catch
-#                 "wait";
-#             end
-#             if any(rowIndex) and sum(rowIndex)==1
-#                 % Get the correct trigger
-#                 trigger = B.MAP(rowIndex,:);    
+            # % Run the main control loop
+            while True:
+                cycleTime  = tic();#% Loop timing
+
+                # Get events
+                events = event_get();
+                for e_ in events:
+                    if e_.type in [pg.QUIT] or e_.type in [pg.KEYDOWN]:
+                        B.STATE_FLAG = "stop";
+                    if e_.type in [pygame.midi.MIDIIN]:
+                        B.log(e_.__str__());
                 
-#                 % "void action()" is the default command type                
-#                 % Support for "void action(int velocity)"
-#                 if trigger.ActionTypeArguments == "void action(int velocity)"
-#                     trigger.HTTP_URL=trigger.HTTP_URL+""+(midi.Velocity-1);
-#                 end
+                # % Check if any new messages have been recieved
+                if i_.poll():
+                    # % Get the midi messages
+                    midi_events = i_.read(10);
+                    
+                    # convert them into pygame events.
+                    # midi_evs = pygame.midi.midis2events(midi_events, i_.device_id);                    
+                    # for m_e in midi_evs:
+                        # event_post(m_e);
+                    # end
 
-#                 try
-#                     [response,completedrequest,history] = send(RequestMessage,trigger.HTTP_URL);
-#                     if response.StatusCode == matlab.net.http.StatusCode.TemporaryRedirect
-#                         B.handleLogin_();
-#                     end
-#                 catch 
-#                     B.testConnection()
-#                 end
+                    # % Loop over all messages that have been recieved
+                    for single_midi_event in midi_events:
 
-#                 % Match the midi note               
-#                 B.log(midi);
-#                 B.log(formattedDisplayText(trigger));
-#             else
-#                 if sum(rowIndex) > 1
-#                     B.log("[error]:Multiple MIDI triggers matching as shown in the table:");
-#                     B.log(B.MAP(rowIndex,:));
-#                     errorMsg = "[error]:Multiple MIDI triggers matching!";
-#                     B.log(errorMsg); 
-#                     error(errorMsg);
-#                 end
-# %                 if sum(rowIndex) < 1
-# %                     B.log("No MIDI triggers matching the trigger map");
-# %                 end
-#             end
-#         end
+                        midiS = B.convertPygameEventToMIDIstruct(single_midi_event);
+                        # % Ignore all messages that don't match the midi channel and the
+                        # % midi message types in the cue trigger mapping database file
+                        if (midiS.Channel in uMidiChannels) and (midiS.Type in uMidiTypes):
+                            # % Call the callback function
+                            B.handleMidiCallback(midiS);
+                        # end
+                    # end
+                # end
 
-#     end
 
+                # % Time delay to maintain the refresh rate 
+                currentDelay = (tDelayInSeconds - toc(cycleTime))*0.925;
+                if currentDelay > 0:
+                    # % Dealy
+                    time.sleep(currentDelay);
+                # end
+                
+                if B.diagnosticMode:
+                    loopCount = loopCount+1;# % Increment the count the total count
+                    lastCount = lastCount+1;# % Increment the count the last count                
+                    # % Disagnostic for tuneing (not needed in deployment)
+                    if not(mod(loopCount,B.inLoopFPS)):
+                        diagnosticMsg = "FPS:%i | C:%i = Clast:%i | T:%f = T:%f | Rtot:%f = Rlast:%f"; 
+                        diagnosticData = [B.inLoopFPS,loopCount,lastCount,toc(totalTime),toc(lastTime),loopCount/toc(totalTime),lastCount/toc(lastTime)];
+                        B.log( diagnosticMsg % tuple(diagnosticData) );
+                        lastTime  = tic();#% Last time reset
+                        lastCount = 0;#% Last count reset
+                    # end
+                # end
+
+                # Exit flag
+                if not(B.STATE_FLAG=="running"):
+                    break;
+                # end
+
+            # end
+
+            # Free the input handle
+            del i_;
+            # close the midi module connection
+            pygame.midi.quit();
+
+        # end
+
+        class convertPygameEventToMIDIstruct:
+            # Proeprties
+            Channel = 16;# Default midi channel
+            Type    = "NoteOn";# Default midi type
+            Note_CC = 0;# Default midi Note_CC
+            Velocity= 0;# Default midi velocity
+            Time    = 0;# Default midi message time
+            # Constructor
+            def __init__(midi_struct,midi_event):
+                # Interface function toconvert between midi events from pygame and useable midi structures
+                midi_struct.Note_CC  = midi_event[0][1];
+                midi_struct.Velocity = midi_event[0][2];
+                midi_struct.Time     = midi_event[1];
+                # If the trigger has 0 velocity it is effectively "NoteOff" type 
+                if midi_struct.Type =="NoteOn" and midi_struct.Velocity == 0:
+                    midi_struct.Type="NoteOff";
+                # end
+            # end
+        # end
+
+        def handleMidiCallback(B,midi):
+            # This function handles the callback 
+
+            # % Filter the trigger table
+            try:
+                rowIndex = list(B.MAP.MidiChanel == midi.Channel) and list(B.MAP.MidiNote_CC == midi.Note_CC);
+            except:
+                "wait";
+            # end
+
+            if any(rowIndex) and sum(rowIndex)==1:
+                # % Get the correct trigger
+                trigger = B.MAP[rowIndex]; 
+
+                # % "void action()" is the default command type                
+                # % Support for "void action(int velocity)"
+                if trigger.ActionTypeArguments.tolist() == "void action(int velocity)":
+                    trigger.HTTP_URL=trigger.HTTP_URL+""+str(midi.Velocity-1);
+                # end
+
+                try:
+                    # Send the HTTP command
+                    response = requests.get(trigger.HTTP_URL.to_list()[0]);
+                    net_http_StatusCode_TemporaryRedirect = 307;
+                    if response.status_code == net_http_StatusCode_TemporaryRedirect:
+                        B.handleLogin_();
+                    # end
+                except: 
+                    B.testConnection();
+                # end
+
+                # % Match the midi note            
+                B.log("MIDI event:"+B.getKeyValuePropertyPairs(midi).__repr__());
+                B.log("HTTP call:"+trigger.values.__repr__().replace("\n","").replace("        "," ")+os.linesep);
+            else:
+                if sum(rowIndex) > 1:
+                    B.log("[error]:Multiple MIDI triggers matching as shown in the table:");
+                    B.log(B.MAP[rowIndex]);
+                    errorMsg = "[error]:Multiple MIDI triggers matching!";
+                    B.log(errorMsg); 
+                    raise Exception();
+                # end
+                if sum(rowIndex) < 1:
+                     B.log("No MIDI triggers matching the trigger map");
+                # end
+            # end
+        # end
+
+        def getKeyValuePropertyPairs(B,object):
+            # Get Key value propery pairs
+            return {key:value for key, value in object.__dict__.items() if not key.startswith('__') and not callable(key)}
+            
+        # end
+    # end
     
     
     # % MIDI Properties
@@ -536,27 +628,29 @@ class MIDI2HTTP_Bridge:
         notesInOctave = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
     # end
 
-    # # % Extra MIDI methods
-    # # methods
-    #     def note2val(B,note):
-    #         val = [];
-    #         warning('finish this function');
-    #         return val;
-    #     # end
+    # % Extra MIDI methods
+    # methods
+        # def note2val(B,note):
+        #     val = [];
+        #     warning('finish this function');
+        #     return val;
+        # # end
 
-    #     def val2note(B,val):
-    #         if not(val.isnumeric()):
-    #             # error('The MIDI note input value is not numeric!');
-    #         # end
+        def val2note(B,val):
+            if not(val.is_integer()):
+                B.log('The MIDI note input value is not numeric!');
+                raise Exception();
+            # end
 
-    #         if 0 <= val and val <= 127
-    #             noteStr = B.notesInOctave( mod(val,numel(B.notesInOctave)) + 1 ) + ...
-    #                              num2str( floor( val/numel(B.notesInOctave) ) - 1 );
-    #         else 
-    #             error('MIDI notes range is [0:127] the input value is out of bounds!');
-    #         # end
-    #         return noteStr;
-    #     # end
-    # # end
+            if 0 <= val and val <= 127:
+                noteStr = B.notesInOctave[ int( mod(val,B.notesInOctave.__len__()) + 1 ) ] + \
+                            str( floor( val/B.notesInOctave.__len__()) - 1 );
+            else: 
+                B.log('MIDI notes range is [0:127] the input value is out of bounds!');
+                raise Exception();
+            # end
+            return noteStr;
+        # end
+    # end
   
 # end

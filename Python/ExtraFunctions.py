@@ -45,6 +45,8 @@ def formattedDisplayText(object):
     outputStr = 80*"-"+os.linesep;
     temp = dir(object)
     for fn in temp:
+        if fn.startswith('__'):
+            continue;
         outputStr =  outputStr+"    "+fn+' : '+str(object.__getattribute__(fn))+os.linesep;
     outputStr =outputStr+80*"-"+os.linesep;
     return outputStr;

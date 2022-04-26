@@ -1,4 +1,4 @@
-HTTP_URL,ServerAPI,MidiMapping,Description,GroupType,"Action-Type(Arguments)	",Midi.msgType,Midi.Chanel,Midi.Note_CC,External Executable,External Cmd
+HTTP_URL,ServerAPI,Midi Mapping,Description,GroupType,Action-Type(Arguments),Midi MsgType,Midi Chanel,Midi Note_CC,External Executable,External Cmd
 /logout,LogoutHandler(),disabled,Log out from the server,Exit,void action(),,,,,
 /tlogo,LogoToggleHandler(),enabled,Touggle Logo,Screen,void action(),NoteOn,16,2,,
 /black,BlackToggleHandler(),enabled,,Screen,void action(),NoteOn,16,1,,
